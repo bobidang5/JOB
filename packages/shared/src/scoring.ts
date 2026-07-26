@@ -1,4 +1,4 @@
-import type { Profile, ResumeContent, Suggestion } from './schemas.js';
+import type { Profile, ResumeContent, Suggestion } from './schemas';
 
 /**
  * DESIGN-SPEC §5.3 的计分规则。

@@ -4,9 +4,9 @@ import {
   MOCK_RESUME_MINE,
   MOCK_RESUME_SAMPLE,
   MOCK_TEMPLATES,
-} from './mock/index.js';
-import { renderPaperBody, renderResumeDocument } from './resume-html.js';
-import type { ResumeContent } from './schemas.js';
+} from './mock/index';
+import { renderPaperBody, renderResumeDocument } from './resume-html';
+import type { ResumeContent } from './schemas';
 
 const EMPTY: ResumeContent = {
   name: '张三',

@@ -1,4 +1,4 @@
-import type { ResumeContent, ResumeTemplateKey } from './schemas.js';
+import type { ResumeContent, ResumeTemplateKey } from './schemas';
 
 /**
  * 简历纸渲染器 —— App 内预览（react-native-webview）与导出 PDF

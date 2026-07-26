@@ -2,7 +2,7 @@ import type {
   AnalysisResult,
   ResumeContent,
   ResumeTemplateKey,
-} from '../schemas.js';
+} from '../schemas';
 
 /**
  * 原型 prototype-interactive.html 底部 <script> 常量区的移植。

@@ -5,7 +5,7 @@ import {
   MOCK_BASE_SCORE,
   MOCK_MAX_SCORE,
   MOCK_RESUME_BEFORE,
-} from './mock/index.js';
+} from './mock/index';
 import {
   applySuggestion,
   applySuggestions,
@@ -13,8 +13,8 @@ import {
   formatResumeMeta,
   scoreHint,
   splitEmphasis,
-} from './scoring.js';
-import { FieldPathSchema } from './schemas.js';
+} from './scoring';
+import { FieldPathSchema } from './schemas';
 
 describe('计分规则（DESIGN-SPEC §5.3）', () => {
   const suggestions = MOCK_ANALYSIS.suggestions;
