@@ -110,6 +110,17 @@ export const AnalysisResultSchema = z.object({
 });
 export type AnalysisResult = z.infer<typeof AnalysisResultSchema>;
 
+/**
+ * 模型一次调用的完整产出：除了分析结果，还从 JD 里抽出职位名与公司名，
+ * 用于匹配度页的「产品经理（增长方向）· 字节跳动」和记录里的「投向 XX」。
+ */
+export const AnalyzeResponseSchema = AnalysisResultSchema.extend({
+  job_title: z.string(),
+  /** JD 里没写公司就是空字符串，界面会自动省略「· 公司」那一段 */
+  company: z.string(),
+});
+export type AnalyzeResponse = z.infer<typeof AnalyzeResponseSchema>;
+
 /* ============================================================
  * 请求 / 响应契约
  * ========================================================== */

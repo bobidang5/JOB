@@ -1,0 +1,32 @@
+{
+  "name": "@zhiyou/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@supabase/supabase-js": "^2.110.8",
+    "@zhiyou/shared": "workspace:*",
+    "mammoth": "^1.9.1",
+    "next": "^16.2.12",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "~19.2.0",
+    "@types/react-dom": "~19.2.0",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^16.2.12",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

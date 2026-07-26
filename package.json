@@ -21,7 +21,9 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
-      "supabase"
+      "supabase",
+      "sharp",
+      "unrs-resolver"
     ]
   },
   "devDependencies": {
