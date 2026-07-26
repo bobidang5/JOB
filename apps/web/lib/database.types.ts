@@ -12,6 +12,20 @@
  */
 
 export type ResumeSource = 'upload' | 'template';
+export type AiProtocol = 'anthropic' | 'openai_compatible';
+export type AiCallKind = 'parse' | 'analyze' | 'draft';
+export type AiCallStatus = 'ok' | 'refusal' | 'contract' | 'error';
+export type AiEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type AdminAction =
+  | 'login'
+  | 'login_failed'
+  | 'logout'
+  | 'password_changed'
+  | 'provider_created'
+  | 'provider_updated'
+  | 'provider_deleted'
+  | 'provider_activated'
+  | 'provider_tested';
 export type AnalysisStatus = 'pending' | 'running' | 'succeeded' | 'failed';
 export type SuggestionStatus = 'pending' | 'adopted' | 'skipped';
 
@@ -168,6 +182,66 @@ type Table<
   Relationships: Relationships;
 };
 
+/* ---------- 运营后台（20260726000200_admin_console.sql）----------
+ * 这几张表只有 service_role 能访问（启用了 RLS 但不给任何策略），
+ * 唯一例外是 ai_usage 的插入。详见迁移文件顶部的说明。
+ */
+
+type AdminUsersRow = {
+  id: string;
+  username: string;
+  password_hash: string;
+  is_default_password: boolean;
+  token_version: number;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type AiProvidersRow = {
+  id: string;
+  label: string;
+  platform: string;
+  protocol: AiProtocol;
+  model: string;
+  base_url: string | null;
+  /** AES-256-GCM 密文，永远不回传给浏览器 */
+  api_key_cipher: string;
+  api_key_last4: string;
+  effort: AiEffort;
+  is_active: boolean;
+  last_tested_at: string | null;
+  last_test_ok: boolean | null;
+  last_test_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type AiUsageRow = {
+  id: string;
+  user_id: string | null;
+  kind: AiCallKind;
+  platform: string;
+  model: string;
+  status: AiCallStatus;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  latency_ms: number;
+  error_code: string | null;
+  created_at: string;
+};
+
+type AdminAuditLogRow = {
+  id: string;
+  admin_user_id: string | null;
+  username: string;
+  action: AdminAction;
+  detail: Record<string, unknown>;
+  ip: string | null;
+  created_at: string;
+};
+
 export interface Database {
   public: {
     Tables: {
@@ -239,13 +313,70 @@ export interface Database {
           >,
         ]
       >;
+      admin_users: Table<
+        AdminUsersRow,
+        | 'id'
+        | 'is_default_password'
+        | 'token_version'
+        | 'last_login_at'
+        | 'created_at'
+        | 'updated_at'
+      >;
+      ai_providers: Table<
+        AiProvidersRow,
+        | 'id'
+        | 'base_url'
+        | 'effort'
+        | 'is_active'
+        | 'last_tested_at'
+        | 'last_test_ok'
+        | 'last_test_error'
+        | 'created_at'
+        | 'updated_at'
+      >;
+      ai_usage: Table<
+        AiUsageRow,
+        | 'id'
+        | 'user_id'
+        | 'input_tokens'
+        | 'output_tokens'
+        | 'cache_read_tokens'
+        | 'latency_ms'
+        | 'error_code'
+        | 'created_at'
+      >;
+      admin_audit_log: Table<
+        AdminAuditLogRow,
+        'id' | 'admin_user_id' | 'detail' | 'ip' | 'created_at'
+      >;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      /** 注册用户计数。security definer，只回计数不回用户行 */
+      admin_user_stats: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total: number;
+          new_today: number;
+          new_7d: number;
+          new_30d: number;
+          confirmed: number;
+        }[];
+      };
+      /** 按日注册趋势 */
+      admin_signup_trend: {
+        Args: { days?: number };
+        Returns: { day: string; signups: number }[];
+      };
+    };
     Enums: {
       resume_source: ResumeSource;
       analysis_status: AnalysisStatus;
       suggestion_status: SuggestionStatus;
+      ai_protocol: AiProtocol;
+      ai_call_kind: AiCallKind;
+      ai_call_status: AiCallStatus;
+      admin_action: AdminAction;
     };
     CompositeTypes: Record<string, never>;
   };
