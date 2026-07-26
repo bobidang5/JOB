@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "职优 AI",
+    "slug": "zhiyou-ai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "zhiyouai",
+    "newArchEnabled": true,
+    "platforms": ["ios", "android", "web"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ai.zhiyou.app",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "拍照用于更换头像。",
+        "NSPhotoLibraryUsageDescription": "从相册选择图片用于更换头像，或上传简历图片。",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "ai.zhiyou.app",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "从相册选择图片用于更换头像。",
+          "cameraPermission": "拍照用于更换头像。"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

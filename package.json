@@ -14,6 +14,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:test": "supabase db reset && psql \"$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\\\"')\" -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql",
+    "db:test:local": "./scripts/db-test-local.sh",
     "mobile": "pnpm --filter @zhiyou/mobile start",
     "web": "pnpm --filter @zhiyou/web dev"
   },
