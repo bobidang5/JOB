@@ -1,0 +1,33 @@
+{
+  "name": "zhiyou-ai",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "pnpm -r --parallel lint",
+    "test": "pnpm -r --parallel test",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase db reset && psql \"$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\\\"')\" -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql",
+    "mobile": "pnpm --filter @zhiyou/mobile start",
+    "web": "pnpm --filter @zhiyou/web dev"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "supabase"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "supabase": "^2.109.1",
+    "typescript": "~5.9.2"
+  }
+}

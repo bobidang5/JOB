@@ -1,0 +1,32 @@
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+.expo/
+*.tsbuildinfo
+
+# Env — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Supabase local stack
+supabase/.branches/
+supabase/.temp/
+
+# Native build artifacts (managed workflow regenerates these)
+apps/mobile/ios/
+apps/mobile/android/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Test / coverage
+coverage/
