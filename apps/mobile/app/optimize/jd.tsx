@@ -70,7 +70,10 @@ export default function JdScreen() {
       return;
     }
 
-    const resume = data?.defaultResume;
+    // 同 useStartOptimize：data 未到时不能把「还没加载」当成「没有简历」
+    if (!data) return;
+
+    const resume = data.defaultResume;
     if (!resume) {
       toast.show(copy.home.needResumeFirst);
       router.replace('/resume/new');
@@ -99,6 +102,7 @@ export default function JdScreen() {
         keyboardVerticalOffset={8}
       >
         <Animated.View
+          testID="jd-input-card"
           style={[
             styles.inputCard,
             showError && styles.inputCardError,

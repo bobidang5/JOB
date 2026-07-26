@@ -1,11 +1,18 @@
-import { createClient, type SupportedStorage } from '@supabase/supabase-js';
+import {
+  createClient,
+  type SupabaseClient,
+  type SupportedStorage,
+} from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, Platform } from 'react-native';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-/** 没配环境变量时给出明确提示，而不是在第一次请求时报一个含糊的网络错误。 */
+/**
+ * 两个变量都填了才算配好。任一为空就是 mock 模式：AuthGate 放行、
+ * 数据全部来自 lib/api.ts，不碰网络。
+ */
 export const isSupabaseConfigured =
   supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
 
@@ -70,28 +77,55 @@ const secureStoreAdapter: SupportedStorage = {
   },
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    // Web 上没有 SecureStore，交给 supabase-js 用 localStorage
-    storage: Platform.OS === 'web' ? undefined : secureStoreAdapter,
-    autoRefreshToken: true,
-    persistSession: true,
-    // RN 里没有 URL 栏，回调 code 由 expo-web-browser 取回后手动兑换
-    detectSessionInUrl: false,
-    flowType: 'pkce',
-  },
-});
+/**
+ * 客户端必须惰性创建。
+ *
+ * createClient 拿到空 URL 会当场抛 "supabaseUrl is required."，而本模块
+ * 被 app/_layout.tsx 顶层引入——在模块顶层无条件 createClient 等于
+ * 「没填凭据就一启动白屏」，mock 模式压根进不去（web 静态导出同理，
+ * 它会在 Node 里真的求值一遍路由模块）。所以推迟到真正要用时才建。
+ */
+let client: SupabaseClient | null = null;
+
+/**
+ * 取客户端。调用前请先判 isSupabaseConfigured——mock 模式下没有任何
+ * 理由走到这里，与其发一个注定打不通的请求，不如当场把话说清楚。
+ */
+export function getSupabase(): SupabaseClient {
+  if (!isSupabaseConfigured) {
+    throw new Error(
+      '未配置 EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY，' +
+        '当前为 mock 模式，不应调用 Supabase',
+    );
+  }
+
+  client ??= createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      // Web 上没有 SecureStore，交给 supabase-js 用 localStorage
+      storage: Platform.OS === 'web' ? undefined : secureStoreAdapter,
+      autoRefreshToken: true,
+      persistSession: true,
+      // RN 里没有 URL 栏，回调 code 由 expo-web-browser 取回后手动兑换
+      detectSessionInUrl: false,
+      flowType: 'pkce',
+    },
+  });
+  return client;
+}
 
 /**
  * App 回到前台时恢复自动刷新，退到后台时停掉——否则后台计时器会一直
  * 尝试刷新，白白耗电还可能在网络不可用时刷出一堆失败。
+ *
+ * mock 模式下不注册：没有会话可刷，注册了反而会在切前台时把上面的
+ * 「不应调用 Supabase」抛到一个没人接的地方。
  */
-if (Platform.OS !== 'web') {
+if (Platform.OS !== 'web' && isSupabaseConfigured) {
   AppState.addEventListener('change', (nextState) => {
     if (nextState === 'active') {
-      void supabase.auth.startAutoRefresh();
+      void getSupabase().auth.startAutoRefresh();
     } else {
-      void supabase.auth.stopAutoRefresh();
+      void getSupabase().auth.stopAutoRefresh();
     }
   });
 }

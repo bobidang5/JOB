@@ -14,7 +14,11 @@ import { colors } from '../../theme';
 export default function RecordsScreen() {
   const router = useRouter();
   const { data } = useRecords();
-  const records = data ?? [];
+
+  // 同首页：data 未到时不能把「还没加载」渲染成「还没有优化记录」
+  if (!data) return <ScreenView testID="screen-records">{null}</ScreenView>;
+
+  const records = data;
   const { count, averageGain } = summarizeRecords(records);
 
   return (

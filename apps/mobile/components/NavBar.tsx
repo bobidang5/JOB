@@ -73,7 +73,9 @@ export function NavAction({
     </Text>
   );
 
-  if (!onPress) return <View style={styles.actionBox}>{content}</View>;
+  // testID 要跟到这个分支来：右上角常有纯展示的文字（比如优化建议页的
+  // 「1 / 4」进度），丢了 testID 就没法断言，测试只能改去按文案匹配。
+  if (!onPress) return <View testID={testID} style={styles.actionBox}>{content}</View>;
 
   return (
     <Pressable

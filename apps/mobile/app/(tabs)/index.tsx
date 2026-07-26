@@ -31,10 +31,15 @@ export default function HomeScreen() {
   const { data } = useHomeSnapshot();
   const startOptimize = useStartOptimize();
 
-  const resume = data?.defaultResume ?? null;
+  // 这一屏的每一处内容都来自 data：问候语要姓名，副标题和主体走 hasResume
+  // 分支。data 未到时 hasResume 会算成 false，老用户会先闪一帧「先来创建你的
+  // 第一份简历」再跳回正常态。空一帧不好看，但闪错状态更糟。
+  if (!data) return <ScreenView testID="screen-home">{null}</ScreenView>;
+
+  const resume = data.defaultResume;
   const hasResume = !!resume;
-  const records = data?.recentRecords ?? [];
-  const name = data?.profile.full_name ?? '';
+  const records = data.recentRecords;
+  const name = data.profile.full_name;
 
   return (
     <ScreenView testID="screen-home">

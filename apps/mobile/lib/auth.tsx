@@ -12,7 +12,7 @@ import React, {
 } from 'react';
 import { Platform } from 'react-native';
 
-import { isSupabaseConfigured, supabase } from './supabase';
+import { getSupabase, isSupabaseConfigured } from './supabase';
 
 /**
  * 认证。
@@ -65,12 +65,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    void supabase.auth.getSession().then(({ data }) => {
+    void getSupabase().auth.getSession().then(({ data }) => {
       setSession(data.session);
       setIsLoading(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(
+    const { data: subscription } = getSupabase().auth.onAuthStateChange(
       (_event, nextSession) => {
         setSession(nextSession);
       },
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithOAuth = useCallback(async (provider: OAuthProvider) => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await getSupabase().auth.signInWithOAuth({
       provider,
       options: {
         redirectTo,
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!code) throw new Error('回调里没有授权码');
 
     const { error: exchangeError } =
-      await supabase.auth.exchangeCodeForSession(code);
+      await getSupabase().auth.exchangeCodeForSession(code);
     if (exchangeError) throw exchangeError;
   }, []);
 
@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Apple 没有返回 identityToken');
       }
 
-      const { error } = await supabase.auth.signInWithIdToken({
+      const { error } = await getSupabase().auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
       });
@@ -138,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    await getSupabase().auth.signOut();
     setSession(null);
   }, []);
 

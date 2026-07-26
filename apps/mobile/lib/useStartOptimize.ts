@@ -19,8 +19,13 @@ export function useStartOptimize(): () => void {
   const { data } = useHomeSnapshot();
 
   return useCallback(() => {
-    const hasResume = !!data?.defaultResume;
-    const hasJd = (data?.jobTarget?.jdText ?? '').trim().length > 0;
+    // 数据还没到就别猜。`data` 为 undefined 时 hasResume 会算成 false，
+    // 于是手快点一下就被误判成「没有简历」，弹提示并跳去新建页——
+    // 明明简历是有的。宁可这一下没反应，也不能把人带错地方。
+    if (!data) return;
+
+    const hasResume = !!data.defaultResume;
+    const hasJd = (data.jobTarget?.jdText ?? '').trim().length > 0;
 
     if (!hasResume) {
       toast.show(copy.home.needResumeFirst);
