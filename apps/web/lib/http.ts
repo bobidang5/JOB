@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
-import { AIContractError, AIRefusalError } from './ai';
+import { AIContractError, AIRefusalError, AIUnsupportedInputError } from './ai';
 import { UnauthorizedError } from './supabase';
 
 /**
@@ -30,6 +30,16 @@ export function errorResponse(error: unknown): NextResponse {
     return NextResponse.json(
       { error: 'ai_refused', message: '这次内容没能处理，换一份试试' },
       { status: 422 },
+    );
+  }
+
+  // 这一类的 message 是唯一可以原样回传的：它讲的是「当前接入的平台不支持
+  // 这种文件」，跟用户简历的内容无关，而且用户得知道该怎么办（换 Word 传，
+  // 或者让管理员把接入切回 Anthropic）。
+  if (error instanceof AIUnsupportedInputError) {
+    return NextResponse.json(
+      { error: 'ai_unsupported_input', message: error.message },
+      { status: 415 },
     );
   }
 

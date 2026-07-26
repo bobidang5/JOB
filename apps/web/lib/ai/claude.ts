@@ -18,29 +18,56 @@ import {
   PARSE_SCHEMA,
   PARSE_SYSTEM,
 } from './prompts';
-import { AIContractError, AIRefusalError, type AIService, type ResumeUpload } from './types';
+import {
+  AIContractError,
+  AIRefusalError,
+  type AICallOptions,
+  type AIService,
+  type ResumeUpload,
+} from './types';
 
-const MODEL = 'claude-opus-5';
+export const CLAUDE_DEFAULT_MODEL = 'claude-opus-5';
 
 /** 服务端拒答兜底的 beta 标志（scalar "default" 形式对应这个日期） */
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 type JsonSchema = Record<string, unknown>;
 
+type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 interface CallOptions {
   system: string;
   content: Anthropic.Beta.BetaContentBlockParam[];
   schema: JsonSchema;
   /** 抽取类任务用 medium，真正吃智能的分析用 high */
-  effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  effort: Effort;
   maxTokens: number;
+}
+
+export interface ClaudeConfig {
+  /** 不传则由 SDK 读 ANTHROPIC_API_KEY */
+  apiKey?: string;
+  model?: string;
+  /**
+   * analyze 用的 effort。抽取类任务（parse / draft）不跟这个走——
+   * 它们不吃深度推理，调高只是白烧 token 和延迟。
+   */
+  effort?: Effort;
+  /** 测试用：直接塞一个客户端进来 */
+  client?: Anthropic;
 }
 
 export class ClaudeAIService implements AIService {
   private readonly client: Anthropic;
+  private readonly model: string;
+  private readonly analyzeEffort: Effort;
 
-  constructor(client = new Anthropic()) {
-    this.client = client;
+  constructor(config: ClaudeConfig = {}) {
+    this.client =
+      config.client ??
+      new Anthropic(config.apiKey ? { apiKey: config.apiKey } : {});
+    this.model = config.model ?? CLAUDE_DEFAULT_MODEL;
+    this.analyzeEffort = config.effort ?? 'high';
   }
 
   /**
@@ -52,15 +79,12 @@ export class ClaudeAIService implements AIService {
    * 系统提示词加了 cache_control —— 它每次调用完全一致，缓存后重复请求
    * 只按缓存读计费。
    */
-  private async call<T>({
-    system,
-    content,
-    schema,
-    effort,
-    maxTokens,
-  }: CallOptions): Promise<T> {
+  private async call<T>(
+    { system, content, schema, effort, maxTokens }: CallOptions,
+    options?: AICallOptions,
+  ): Promise<T> {
     const params = {
-      model: MODEL,
+      model: this.model,
       max_tokens: maxTokens,
       system: [
         {
@@ -95,6 +119,13 @@ export class ClaudeAIService implements AIService {
       message = await stream.finalMessage();
     }
 
+    // 用量在读内容之前上报：拒答和契约错误都要能记上，那两条路径是抛异常的
+    options?.onUsage?.({
+      inputTokens: message.usage.input_tokens,
+      outputTokens: message.usage.output_tokens,
+      cacheReadTokens: message.usage.cache_read_input_tokens ?? 0,
+    });
+
     // 拒答走的是 HTTP 200 + stop_reason，直接索引 content[0] 会崩，
     // 所以先判 stop_reason 再读内容。
     if (message.stop_reason === 'refusal') {
@@ -115,21 +146,24 @@ export class ClaudeAIService implements AIService {
     }
   }
 
-  async parseResume(upload: ResumeUpload) {
-    const raw = await this.call<unknown>({
-      system: PARSE_SYSTEM,
-      content: [
-        toDocumentBlock(upload),
-        {
-          type: 'text',
-          text: `请从这份简历（原文件名：${upload.filename}）里抽取结构化内容。`,
-        },
-      ],
-      schema: PARSE_SCHEMA,
-      // 抽取任务不吃深度推理，medium 足够且更省 token 与延迟
-      effort: 'medium',
-      maxTokens: 16000,
-    });
+  async parseResume(upload: ResumeUpload, options?: AICallOptions) {
+    const raw = await this.call<unknown>(
+      {
+        system: PARSE_SYSTEM,
+        content: [
+          toDocumentBlock(upload),
+          {
+            type: 'text',
+            text: `请从这份简历（原文件名：${upload.filename}）里抽取结构化内容。`,
+          },
+        ],
+        schema: PARSE_SCHEMA,
+        // 抽取任务不吃深度推理，medium 足够且更省 token 与延迟
+        effort: 'medium',
+        maxTokens: 16000,
+      },
+      options,
+    );
 
     const parsed = ParseResumeResponseSchema.safeParse(raw);
     if (!parsed.success) {
@@ -138,27 +172,33 @@ export class ClaudeAIService implements AIService {
     return parsed.data;
   }
 
-  async analyze(input: {
-    resume: ResumeContent;
-    jdText: string;
-    baseScore: number;
-  }): Promise<AnalyzeResponse> {
-    const raw = await this.call<unknown>({
-      system: ANALYZE_SYSTEM,
-      content: [
-        {
-          type: 'text',
-          text:
-            `简历（JSON）：\n${JSON.stringify(input.resume, null, 2)}\n\n` +
-            `当前简历分：${input.baseScore}\n\n` +
-            `职位描述：\n${input.jdText}`,
-        },
-      ],
-      schema: ANALYZE_SCHEMA,
-      // 全 App 唯一真正吃智能的环节
-      effort: 'high',
-      maxTokens: 32000,
-    });
+  async analyze(
+    input: {
+      resume: ResumeContent;
+      jdText: string;
+      baseScore: number;
+    },
+    options?: AICallOptions,
+  ): Promise<AnalyzeResponse> {
+    const raw = await this.call<unknown>(
+      {
+        system: ANALYZE_SYSTEM,
+        content: [
+          {
+            type: 'text',
+            text:
+              `简历（JSON）：\n${JSON.stringify(input.resume, null, 2)}\n\n` +
+              `当前简历分：${input.baseScore}\n\n` +
+              `职位描述：\n${input.jdText}`,
+          },
+        ],
+        schema: ANALYZE_SCHEMA,
+        // 全 App 唯一真正吃智能的环节
+        effort: this.analyzeEffort,
+        maxTokens: 32000,
+      },
+      options,
+    );
 
     const parsed = AnalyzeResponseSchema.safeParse(raw);
     if (!parsed.success) {
@@ -174,27 +214,33 @@ export class ClaudeAIService implements AIService {
     return { ...parsed.data, suggestions };
   }
 
-  async draftFromTemplate(input: {
-    profile: Profile;
-    templateKey: ResumeTemplateKey;
-  }): Promise<ResumeContent> {
-    const raw = await this.call<unknown>({
-      system: DRAFT_SYSTEM,
-      content: [
-        {
-          type: 'text',
-          text:
-            `姓名：${input.profile.full_name}\n` +
-            `求职意向：${input.profile.job_intent}\n` +
-            `工作年限：${input.profile.years_experience ?? '未填'}\n` +
-            `所在城市：${input.profile.city}\n` +
-            `基本信息栏应为：${formatResumeMeta(input.profile)}`,
-        },
-      ],
-      schema: DRAFT_SCHEMA,
-      effort: 'medium',
-      maxTokens: 16000,
-    });
+  async draftFromTemplate(
+    input: {
+      profile: Profile;
+      templateKey: ResumeTemplateKey;
+    },
+    options?: AICallOptions,
+  ): Promise<ResumeContent> {
+    const raw = await this.call<unknown>(
+      {
+        system: DRAFT_SYSTEM,
+        content: [
+          {
+            type: 'text',
+            text:
+              `姓名：${input.profile.full_name}\n` +
+              `求职意向：${input.profile.job_intent}\n` +
+              `工作年限：${input.profile.years_experience ?? '未填'}\n` +
+              `所在城市：${input.profile.city}\n` +
+              `基本信息栏应为：${formatResumeMeta(input.profile)}`,
+          },
+        ],
+        schema: DRAFT_SCHEMA,
+        effort: 'medium',
+        maxTokens: 16000,
+      },
+      options,
+    );
 
     const parsed = ResumeContentSchema.safeParse(raw);
     if (!parsed.success) {

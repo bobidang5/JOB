@@ -1,7 +1,7 @@
 import { ResumeContentSchema } from '@zhiyou/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { AIContractError, AIRefusalError } from './ai';
+import { AIContractError, AIRefusalError, AIUnsupportedInputError } from './ai';
 import { errorResponse } from './http';
 import { UnauthorizedError } from './supabase';
 
@@ -82,6 +82,20 @@ describe('errorResponse 的分类映射', () => {
     expect(body).toEqual({ error: 'ai_contract', message: '分析结果异常，请再试一次' });
     expect(JSON.stringify(body)).not.toContain('李婷');
     expect(log).toHaveBeenCalled();
+  });
+
+  it('AIUnsupportedInputError → 415，message 原样回传', async () => {
+    // 唯一一类可以把 message 交给客户端的：它讲的是「当前接入的平台不支持
+    // 这种文件」，与简历内容无关，而用户需要知道该换成什么格式再传
+    const message =
+      '当前接入的平台走的是 OpenAI 兼容端点，解析不了 PDF 简历原件。' +
+      '请改用 Word（.docx）上传，或在后台把 AI 接入切换成 Anthropic Claude。';
+
+    const response = errorResponse(new AIUnsupportedInputError(message));
+    const body = await bodyOf(response);
+
+    expect(response.status).toBe(415);
+    expect(body).toEqual({ error: 'ai_unsupported_input', message });
   });
 
   it('其它异常 → 500，原始 message 不进响应体', async () => {

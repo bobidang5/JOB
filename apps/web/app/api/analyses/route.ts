@@ -5,7 +5,8 @@ import {
 } from '@zhiyou/shared';
 import { NextResponse } from 'next/server';
 
-import { getAIService } from '../../../lib/ai';
+import { getConfiguredAIService } from '../../../lib/ai';
+import { withUsage } from '../../../lib/ai/usage';
 import { errorResponse, unwrap } from '../../../lib/http';
 import { authenticate } from '../../../lib/supabase';
 
@@ -44,13 +45,23 @@ export async function POST(request: Request) {
 
     const content = ResumeContentSchema.parse(resume.content);
 
+    const { service, platform, model } = await getConfiguredAIService();
+
     // 先分析：职位名与公司名是模型从 JD 里抽出来的，拿到之后再建
     // job_target，省得先插一条空的再回头更新。
-    const analysis = await getAIService().analyze({
-      resume: content,
-      jdText: body.jd_text,
-      baseScore: resume.score,
-    });
+    const analysis = await withUsage(
+      supabase,
+      { userId, kind: 'analyze', platform, model },
+      (options) =>
+        service.analyze(
+          {
+            resume: content,
+            jdText: body.jd_text,
+            baseScore: resume.score,
+          },
+          options,
+        ),
+    );
 
     const jobTarget = unwrap(
       await supabase

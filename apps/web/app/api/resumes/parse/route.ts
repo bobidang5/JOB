@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { getAIService } from '../../../../lib/ai';
+import { getConfiguredAIService } from '../../../../lib/ai';
+import { withUsage } from '../../../../lib/ai/usage';
 import { errorResponse } from '../../../../lib/http';
 import { authenticate } from '../../../../lib/supabase';
 
@@ -9,6 +10,10 @@ import { authenticate } from '../../../../lib/supabase';
  *
  * PDF 与图片直接作为 document / image 内容块交给 Claude；Word 先用
  * mammoth 转成纯文本再进去（模型不吃 .docx 的二进制）。
+ *
+ * 接入的是 OpenAI 兼容平台时 PDF / 图片走不通，适配器会抛
+ * AIUnsupportedInputError，errorResponse 把它映射成 415 并提示换 Word 上传
+ * 或改用 Anthropic 接入。
  */
 
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -27,7 +32,7 @@ const SUPPORTED = new Set([
 
 export async function POST(request: Request) {
   try {
-    await authenticate(request);
+    const { supabase, userId } = await authenticate(request);
 
     const form = await request.formData();
     const file = form.get('file');
@@ -64,11 +69,14 @@ export async function POST(request: Request) {
       mediaType = 'text/plain';
     }
 
-    const result = await getAIService().parseResume({
-      filename: file.name,
-      mediaType,
-      data,
-    });
+    const { service, platform, model } = await getConfiguredAIService();
+
+    const result = await withUsage(
+      supabase,
+      { userId, kind: 'parse', platform, model },
+      (options) =>
+        service.parseResume({ filename: file.name, mediaType, data }, options),
+    );
 
     return NextResponse.json(result);
   } catch (error) {

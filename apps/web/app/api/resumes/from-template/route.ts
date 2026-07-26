@@ -2,7 +2,8 @@ import { ProfileSchema, ResumeTemplateKeySchema } from '@zhiyou/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getAIService } from '../../../../lib/ai';
+import { getConfiguredAIService } from '../../../../lib/ai';
+import { withUsage } from '../../../../lib/ai/usage';
 import { errorResponse, unwrap } from '../../../../lib/http';
 import { authenticate } from '../../../../lib/supabase';
 
@@ -53,10 +54,17 @@ export async function POST(request: Request) {
     );
     const profile = ProfileSchema.parse(profileRow);
 
-    const content = await getAIService().draftFromTemplate({
-      profile,
-      templateKey: body.template_key,
-    });
+    const { service, platform, model } = await getConfiguredAIService();
+
+    const content = await withUsage(
+      supabase,
+      { userId, kind: 'draft', platform, model },
+      (options) =>
+        service.draftFromTemplate(
+          { profile, templateKey: body.template_key },
+          options,
+        ),
+    );
 
     const resume = unwrap(
       await supabase
