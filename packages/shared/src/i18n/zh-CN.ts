@@ -157,13 +157,14 @@ export const copy = {
 
   match: {
     title: '匹配度',
+    // ** 之间的部分渲染为深色加粗（对应原型的 <b>），见 RichText 组件
     jobLine: (jobTitle: string, company: string) =>
-      company.length > 0 ? `${jobTitle} · ${company}` : jobTitle,
+      company.length > 0 ? `**${jobTitle}** · ${company}` : `**${jobTitle}**`,
     gaugeCaption: '匹配度',
     verdict: (satisfied: number, missing: number) =>
-      `已满足 ${satisfied} 项职位要求\n补上下面 ${missing} 项，会更有竞争力`,
+      `已满足 **${satisfied}** 项职位要求\n补上下面 **${missing}** 项，会更有竞争力`,
     verdictNoGap: (satisfied: number) =>
-      `已满足 ${satisfied} 项职位要求\n这份简历已经很贴合了`,
+      `已满足 **${satisfied}** 项职位要求\n这份简历已经很贴合了`,
     keywordCount: (count: number) => `职位中出现 ${count} 次`,
     optimize: '一键优化简历',
   },
